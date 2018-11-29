@@ -1,0 +1,168 @@
+- config:
+    name: 钱包项目测试
+    # 全局变量
+    variables:
+        - CoinType: 0
+        #商户id
+        - MerchantId: 32
+        - toMerchantId: "32"
+        - MerchantId2: 22
+        - Rows: 10
+        - Page: 1
+        # 用户id
+        - UserId1: "86ccccf565d9421482f06adf2255a3bc"
+        - UserId2: "9e403dbbd44c4b6894315a3d430d1274"
+        - UserId3: "5fcb956fba5f4e7bbae48b46ac57d002"
+        # 获取当前时间错
+        - timestamp: ${get_time()}
+        - startTime: ${get_start_time()}
+        - endTime: ${get_end_time()}
+        - errorSignature: "2errorSignature"
+        - newUuid: ${create_uuid()}
+        - TRANSFER_AMOUNT: 0.01
+        - COIN_ENABLE_AMOUNT_ADD_TRANSFER_AMOUNT: "0.51000000"
+        - COIN_FROZEN_AMOUNT_ADD_TRANSFER_AMOUNT: "0.06000000"
+        #转账类型
+        - businessType1: 10
+        - businessType2: 11
+        - businessType3: 12
+        - businessType4: 13
+        - businessType5: 14
+        - businessType6: 15
+    # 输出变量值
+#    output: [COIN_FROZEN_AMOUNT,COIN_ENABLE_AMOUNT]
+    request:
+        base_url: http://192.168.1.218:8091
+        headers:
+            Content-Type: application/json
+
+- test:
+    name: 创建商户转用户的签名成功(可用to可用)
+    variables:
+            - flow_number: ${create_serial_numbe()}
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: $flow_number
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+
+- test:
+    name: 创建商户转用户的签名成功(可用to可用)
+    variables:
+            - flow_number: ${create_serial_numbe()}
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: $flow_number
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建商户转用户的签名成功(可用to可用)
+    variables:
+            - flow_number: ${create_serial_numbe()}
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: $flow_number
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建商户转用户的签名成功(可用to可用)
+    variables:
+            - flow_number: ${create_serial_numbe()}
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: $flow_number
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建商户转用户的签名成功(可用to可用)
+    variables:
+            - flow_number: ${create_serial_numbe()}
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: $flow_number
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]

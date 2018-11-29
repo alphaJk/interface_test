@@ -1,0 +1,1869 @@
+- config:
+    name: 钱包项目测试
+    # 全局变量
+    variables:
+        - CoinType: 0
+        #商户id
+        - MerchantId: 1
+        - toMerchantId: "1"
+#        - MerchantId2: 22
+        - Rows: 10
+        - Page: 1
+        # 用户id
+        - UserId1: "037ed2aadd0c4c34ab1509686638f762"
+        - UserId2: "da5d4d2db50e4711a5ff6662bf59ab58"
+        - UserId3: "5b8259ba77914df0af426d2541d9f60f"
+        # 获取当前时间错
+        - timestamp: ${get_time()}
+        - startTime: ${get_start_time()}
+        - endTime: ${get_end_time()}
+        - errorSignature: "2errorSignature"
+        - newUuid: ${create_uuid()}
+        - TRANSFER_AMOUNT: 0.01
+        - COIN_ENABLE_AMOUNT_ADD_TRANSFER_AMOUNT: "0.51000000"
+        - COIN_FROZEN_AMOUNT_ADD_TRANSFER_AMOUNT: "0.06000000"
+        #转账类型
+        - businessType1: 10
+        - businessType2: 11
+        - businessType3: 12
+        - businessType4: 13
+        - businessType5: 14
+        - businessType6: 15
+    # 输出变量值
+#    output: [COIN_FROZEN_AMOUNT,COIN_ENABLE_AMOUNT]
+    request:
+        base_url: http://192.168.1.218:8091
+        headers:
+            Content-Type: application/json
+
+###################创建用户###############
+
+- test:
+    name: 创建用户的签名
+    request:
+        url: /createWalletCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            customerUUID: $newUuid
+            remark: "自动化测试创建的用户"
+    # 获取的APPSession用于后面的接口调用
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建用户成功
+    request:
+        url: /createWalletCustomer
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            customerUUID: $newUuid
+            signature: $Signature
+            remark: "自动化测试创建的用户"
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+
+####################查询测试账户1的资金明细，并记录####################
+
+- test:
+    name: 创建用户资金查询的签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 用户资金查询成功
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     extract:
+     #冻结币/可用币/总入币/总提币
+        - COIN_FROZEN_AMOUNT: content.data.0.coinFrozenAmount
+        - COIN_ENABLE_AMOUNT: content.data.0.coinEnableAmount
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId1]
+
+
+######################商户与用户间的转账#####################
+
+- test:
+    name: 创建商户转用户的签名成功(可用to可用)
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 商户转用户成功(可用to可用)
+    request:
+        url: /doTransferMerchant
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId1
+            remark: "商户可用to用户可用"
+            transferType: 3
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证转账商户转用户后，用户的金额（可用to可用）
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId1]
+         - eq: [content.data.0.coinEnableAmount,$COIN_ENABLE_AMOUNT_ADD_TRANSFER_AMOUNT]
+
+- test:
+    name: 创建用户转商户的签名成功(可用转可用)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId1
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $toMerchantId
+            remark: "用户可用to商户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户转商户成功(可用转可用)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId1
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $toMerchantId
+            remark: "用户可用to商户可用"
+            transferType: 3
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证转账用户转商户后金额（可用to可用）
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId1]
+         - eq: [content.data.0.coinEnableAmount,$COIN_ENABLE_AMOUNT]
+
+- test:
+    name: 创建商户转用户的签名成功(冻结to冻结)
+    request:
+        url: /doTransferMerchant/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId1
+            remark: "商户冻结to用户冻结"
+            transferType: 2
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 商户转用户成功(冻结to冻结)
+    request:
+        url: /doTransferMerchant
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $MerchantId
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId1
+            remark: "商户冻结to用户冻结"
+            transferType: 2
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证转账商户to用户后金额（冻结to冻结）
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId1]
+         - eq: [content.data.0.coinFrozenAmount,$COIN_FROZEN_AMOUNT_ADD_TRANSFER_AMOUNT]
+
+- test:
+    name: 创建用户转商户的签名成功(冻结to冻结)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId1
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $toMerchantId
+            remark: "用户冻结to商户冻结"
+            transferType: 2
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户转商户成功(冻结to冻结)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType1
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId1
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $toMerchantId
+            remark: "用户冻结to商户冻结"
+            transferType: 2
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证转账用户to商户后金额（冻结to冻结）
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId1]
+         - eq: [content.data.0.coinFrozenAmount,$COIN_FROZEN_AMOUNT]
+
+
+#################################暂时不执行##################################################
+
+#- test:
+#    name: 创建商户转用户的签名成功(可用to冻结)
+#    request:
+#        url: /doTransferMerchant/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $MerchantId
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            toId: $UserId1
+#            remark: "商户可用to用户冻结"
+#            transferType: 4
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 商户转用户成功(可用to冻结)
+#    request:
+#        url: /doTransferMerchant
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $MerchantId
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            signature: $Signature
+#            toId: $UserId1
+#            remark: "商户可用to用户冻结"
+#            transferType: 4
+#    # 获取的APPSession用于后面的接口调用
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 签名成功
+#    request:
+#        url: /queryCustomerCoin/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            coinType: $CoinType
+#            merchantId: $MerchantId
+#            timestamp: $timestamp
+#            objId: $UserId1
+#            rows: $Rows
+#            page: $Page
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#
+#- test:
+#     name: 验证转账商户转用户后，用户的金额（可用to冻结）
+#     request:
+#         url: /queryCustomerCoin/
+#         method: POST
+#         headers:
+#             # Content-Type: application/json
+#         json:
+#             coinType: $CoinType
+#             merchantId: $MerchantId
+#             timestamp: $timestamp
+#             objId: $UserId1
+#             signature: $Signature
+#             rows: $Rows
+#             page: $Page
+#     validate:
+#         - eq: [content.code, "0000"]
+#         - eq: [content.data.0.merchantId,$MerchantId]
+#         - eq: [content.data.0.objId,$UserId1]
+#         - eq: [content.data.0.coinFrozenAmount,"0.10100000"]
+#         - eq: [content.data.0.coinEnableAmount,"0.10890000"]
+#- test:
+#    name: 创建用户转商户的签名成功(冻结to可用)
+#    request:
+#        url: /doTransferCustomer/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $UserId1
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            toId: $toMerchantId
+#            remark: "用户冻结to商户可用"
+#            transferType: 1
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 用户转商户成功(冻结to可用)
+#    request:
+#        url: /doTransferCustomer
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $UserId1
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            signature: $Signature
+#            toId: $toMerchantId
+#            remark: "用户冻结to商户可用"
+#            transferType: 1
+#    # 获取的APPSession用于后面的接口调用
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#
+#- test:
+#    name: 签名成功
+#    request:
+#        url: /queryCustomerCoin/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            coinType: $CoinType
+#            merchantId: $MerchantId
+#            timestamp: $timestamp
+#            objId: $UserId1
+#            rows: $Rows
+#            page: $Page
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#
+#- test:
+#     name: 验证转账用户转商户后，用户的金额（冻结to可用）
+#     request:
+#         url: /queryCustomerCoin/
+#         method: POST
+#         headers:
+#             # Content-Type: application/json
+#         json:
+#             coinType: $CoinType
+#             merchantId: $MerchantId
+#             timestamp: $timestamp
+#             objId: $UserId1
+#             signature: $Signature
+#             rows: $Rows
+#             page: $Page
+#     validate:
+#         - eq: [content.code, "0000"]
+#         - eq: [content.data.0.merchantId,$MerchantId]
+#         - eq: [content.data.0.objId,$UserId1]
+#         - eq: [content.data.0.coinFrozenAmount,"0.09600000"]
+#         - eq: [content.data.0.coinEnableAmount,"0.10890000"]
+#
+#- test:
+#    name: 创建商户转用户的签名成功(冻结to可用)
+#    request:
+#        url: /doTransferMerchant/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $MerchantId
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            toId: $UserId1
+#            remark: "商户冻结to用户可用"
+#            transferType: 1
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 商户转用户成功(冻结to冻结)
+#    request:
+#        url: /doTransferMerchant
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $MerchantId
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            signature: $Signature
+#            toId: $UserId1
+#            remark: "商户冻结to用户可用"
+#            transferType: 1
+#    # 获取的APPSession用于后面的接口调用
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 签名成功
+#    request:
+#        url: /queryCustomerCoin/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            coinType: $CoinType
+#            merchantId: $MerchantId
+#            timestamp: $timestamp
+#            objId: $UserId1
+#            rows: $Rows
+#            page: $Page
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#
+#- test:
+#     name: 验证转账商户转用户后，用户的金额（冻结to可用）
+#     request:
+#         url: /queryCustomerCoin/
+#         method: POST
+#         headers:
+#             # Content-Type: application/json
+#         json:
+#             coinType: $CoinType
+#             merchantId: $MerchantId
+#             timestamp: $timestamp
+#             objId: $UserId1
+#             signature: $Signature
+#             rows: $Rows
+#             page: $Page
+#     validate:
+#         - eq: [content.code, "0000"]
+#         - eq: [content.data.0.merchantId,$MerchantId]
+#         - eq: [content.data.0.objId,$UserId1]
+#         - eq: [content.data.0.coinFrozenAmount,"0.09600000"]
+#         - eq: [content.data.0.coinEnableAmount,"0.11390000"]
+#
+#- test:
+#    name: 创建用户转商户的签名成功(可用转冻结)
+#    request:
+#        url: /doTransferCustomer/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $UserId1
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            toId: $toMerchantId
+#            remark: "用户可用to商户冻结"
+#            transferType: 4
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 用户转商户成功(可用转冻结)
+#    request:
+#        url: /doTransferCustomer
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            businessType: $businessType1
+#            coinType: $CoinType
+#            flowNo: $timestamp
+#            fromId: $UserId1
+#            merchantId: $MerchantId
+#            occurAmount: 0.005
+#            timestamp: $timestamp
+#            signature: $Signature
+#            toId: $toMerchantId
+#            remark: "用户可用to商户冻结"
+#            transferType: 4
+#    # 获取的APPSession用于后面的接口调用
+#    validate:
+#        - eq: [content.code, "0000"]
+#        - eq: [content.desc, "成功"]
+#
+#- test:
+#    name: 签名成功
+#    request:
+#        url: /queryCustomerCoin/buildSignature
+#        method: POST
+#        headers:
+#            # Content-Type: application/json
+#        json:
+#            coinType: $CoinType
+#            merchantId: $MerchantId
+#            timestamp: $timestamp
+#            objId: $UserId1
+#            rows: $Rows
+#            page: $Page
+#    # 获取的APPSession用于后面的接口调用
+#    extract:
+#        - Signature: content.data
+#    validate:
+#        - eq: [content.code, "0000"]
+#
+#- test:
+#     name: 验证转账用户转商户后，用户的金额（可用to冻结）
+#     request:
+#         url: /queryCustomerCoin/
+#         method: POST
+#         headers:
+#             # Content-Type: application/json
+#         json:
+#             coinType: $CoinType
+#             merchantId: $MerchantId
+#             timestamp: $timestamp
+#             objId: $UserId1
+#             signature: $Signature
+#             rows: $Rows
+#             page: $Page
+#     validate:
+#         - eq: [content.code, "0000"]
+#         - eq: [content.data.0.merchantId,$MerchantId]
+#         - eq: [content.data.0.objId,$UserId1]
+#         - eq: [content.data.0.coinFrozenAmount,"0.09600000"]
+#         - eq: [content.data.0.coinEnableAmount,"0.10890000"]
+
+
+##########################用户间转账######################################
+
+# 查询用户信息并记录
+- test:
+    name: 创建用户资金查询的签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId2
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 用户资金查询成功
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId2
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     extract:
+        - COIN_FROZEN_AMOUNT: content.data.0.coinFrozenAmount
+        - COIN_ENABLE_AMOUNT: content.data.0.coinEnableAmount
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId2]
+
+# 可用转可用
+- test:
+    name: 创建用户间转账的签名成功(可用转可用)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId2
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId3
+            remark: "用户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户间转账成功(可用转可用)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId2
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId3
+            remark: "用户可用to用户可用"
+            transferType: 3
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建用户间转账的签名成功(可用转可用)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId3
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId2
+            remark: "用户可用to用户可用"
+            transferType: 3
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户间转账成功(可用转可用)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId3
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId2
+            remark: "用户可用to用户可用"
+            transferType: 3
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建签名
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId2
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证资金金额
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId2
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.coinFrozenAmount,$COIN_FROZEN_AMOUNT]
+         - eq: [content.data.0.coinEnableAmount,$COIN_ENABLE_AMOUNT]
+
+#冻结转冻结
+
+- test:
+    name: 创建用户间转账的签名成功(冻结转冻结)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId2
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId3
+            remark: "用户冻结to用户冻结"
+            transferType: 2
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户间转账成功(冻结转冻结)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId2
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId3
+            remark: "用户冻结to用户冻结"
+            transferType: 2
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建用户间转账的签名成功(冻结转冻结)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId3
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId2
+            remark: "用户冻结to用户冻结"
+            transferType: 2
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户间转账成功(冻结转冻结)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId3
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId2
+            remark: "用户冻结to用户冻结"
+            transferType: 2
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建签名
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId2
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证资金金额
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId2
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.coinFrozenAmount,$COIN_FROZEN_AMOUNT]
+         - eq: [content.data.0.coinEnableAmount,$COIN_ENABLE_AMOUNT]
+
+#可用到冻结、冻结到可用
+- test:
+    name: 创建用户间转账的签名成功(可用转冻结)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId2
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId3
+            remark: "用户可用to用户冻结"
+            transferType: 4
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户间转账成功(可用转冻结)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId2
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId3
+            remark: "用户可用to用户冻结"
+            transferType: 4
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建用户间转账的签名成功(冻结转可用)
+    request:
+        url: /doTransferCustomer/buildSignature
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId3
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            toId: $UserId2
+            remark: "用户冻结to用户可用"
+            transferType: 1
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 用户间转账成功(冻结转可用)
+    request:
+        url: /doTransferCustomer
+        method: POST
+        headers:
+
+        json:
+            businessType: $businessType2
+            coinType: $CoinType
+            flowNo: ${create_serial_number()}
+            fromId: $UserId3
+            fee: 0
+            merchantId: $MerchantId
+            occurAmount: $TRANSFER_AMOUNT
+            timestamp: $timestamp
+            signature: $Signature
+            toId: $UserId2
+            remark: "用户冻结to用户可用"
+            transferType: 1
+    validate:
+        - eq: [content.code, "0000"]
+        - eq: [content.desc, "成功"]
+
+- test:
+    name: 创建签名
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId2
+            rows: $Rows
+            page: $Page
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 验证资金金额
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId2
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.coinFrozenAmount,$COIN_FROZEN_AMOUNT]
+         - eq: [content.data.0.coinEnableAmount,$COIN_ENABLE_AMOUNT]
+
+
+#####################撤单#####################
+
+
+
+##################以下为单接口测试##############################
+
+
+
+####用户资金查询
+- test:
+    name: 创建用户资金查询的签名成功
+    request:
+        url: /queryCustomerCoin/buildSignature
+        method: POST
+        headers:
+            # Content-Type: application/json
+        json:
+            coinType: $CoinType
+            merchantId: $MerchantId
+            timestamp: $timestamp
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+    # 获取的APPSession用于后面的接口调用
+    extract:
+        - Signature: content.data
+    validate:
+        - eq: [content.code, "0000"]
+
+- test:
+     name: 用户资金查询成功
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+             # Content-Type: application/json
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code, "0000"]
+         - eq: [content.data.0.merchantId,$MerchantId]
+         - eq: [content.data.0.objId,$UserId1]
+
+- test:
+     name: 用户资金查询失败，参数类型错误
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: "ddddd"
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.status,400]
+
+- test:
+     name: 用户资金查询失败，商户id不存在
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: 5555
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $Signature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code,0008]
+         - eq: [content.desc,"商户不存在"]
+         - eq: [content.data,"商户不存在"]
+
+- test:
+     name: 用户资金查询失败，参数与签名不同
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $errorSignature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code,"0040"]
+         - eq: [content.desc,"商户鉴权参数异常"]
+         - eq: [content.data,"商户鉴权参数异常"]
+
+- test:
+     name: 用户资金查询失败，用户UUID错误
+     request:
+         url: /queryCustomerCoin/
+         method: POST
+         headers:
+
+         json:
+             coinType: $CoinType
+             merchantId: $MerchantId
+             timestamp: $timestamp
+             objId: $UserId1
+             signature: $errorSignature
+             rows: $Rows
+             page: $Page
+     validate:
+         - eq: [content.code,"0040"]
+         - eq: [content.desc,"商户鉴权参数异常"]
+         - eq: [content.data,"商户鉴权参数异常"]
+
+####查询用户入币流水
+- test:
+     name: 查询用户入币流水信息的签名成功
+     request:
+         url: /queryCoinInFlow/buildSignature
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+     extract:
+        - Signature: content.data
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户入币流水信息成功
+     request:
+         url: /queryCoinInFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户入币流水信息失败，参数类型错误
+     request:
+         url: /queryCoinInFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: "fffff"
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.status,400]
+
+- test:
+     name: 查询用户入币流水信息失败，商户id不存在
+     request:
+         url: /queryCoinInFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: 5555
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,0008]
+         - eq: [content.desc,"商户不存在"]
+         - eq: [content.data,"商户不存在"]
+
+- test:
+     name: 查询用户入币流水信息失败，参数与签名不同
+     request:
+         url: /queryCoinInFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $errorSignature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0040"]
+         - eq: [content.desc,"商户鉴权参数异常"]
+         - eq: [content.data,"商户鉴权参数异常"]
+
+####查询用户提币流水
+- test:
+     name: 查询用户提币流水信息的签名成功
+     request:
+         url: /queryAccountFlow/buildSignature
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+     extract:
+        - Signature: content.data
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户提币流水信息成功
+     request:
+         url: /queryCoinOutFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户提币流水信息失败，参数类型错误
+     request:
+         url: /queryCoinOutFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: "dddd"
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.status,400]
+
+- test:
+     name: 查询用户提币流水信息失败，商户id不存在
+     request:
+         url: /queryCoinOutFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: 5555
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,0008]
+         - eq: [content.desc,"商户不存在"]
+         - eq: [content.data,"商户不存在"]
+
+- test:
+     name: 查询用户提币流水信息失败，参数与签名不同
+     request:
+         url: /queryCoinOutFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $errorSignature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0040"]
+         - eq: [content.desc,"商户鉴权参数异常"]
+         - eq: [content.data,"商户鉴权参数异常"]
+
+####查询用户资金流水
+- test:
+     name: 生成查询用户资金流水信息的签名成功
+     request:
+         url: /queryAccountFlow/buildSignature
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+     extract:
+        - Signature: content.data
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户资金流水信息成功
+     request:
+         url: /queryAccountFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户资金流水信息失败，参数类型错误
+     request:
+         url: /queryAccountFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: "dddd"
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.status,400]
+
+- test:
+     name: 查询用户资金流水信息失败，商户id不存在
+     request:
+         url: /queryAccountFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: 5555
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,0008]
+         - eq: [content.desc,"商户不存在"]
+         - eq: [content.data,"商户不存在"]
+
+- test:
+     name: 查询用户资金流水信息失败，参数与签名不同
+     request:
+         url: /queryAccountFlow
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $errorSignature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0040"]
+         - eq: [content.desc,"商户鉴权参数异常"]
+         - eq: [content.data,"商户鉴权参数异常"]
+
+####查询用户交易明细
+- test:
+     name: 生成查询用户资金交易明细信息的签名成功
+     request:
+         url: /queryAccountTransaction/buildSignature
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            rows: $Rows
+            page: $Page
+     extract:
+        - Signature: content.data
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户资金交易明细成功
+     request:
+         url: /queryAccountTransaction
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0000"]
+         - eq: [content.desc,"成功"]
+
+- test:
+     name: 查询用户资金交易明细失败，参数类型错误
+     request:
+         url: /queryAccountTransaction
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: "dddd"
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.status,400]
+
+- test:
+     name: 查询用户资金交易明细失败，商户id不存在
+     request:
+         url: /queryAccountTransaction
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: 5555
+            objId: $UserId1
+            signature: $Signature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,0008]
+         - eq: [content.desc,"商户不存在"]
+         - eq: [content.data,"商户不存在"]
+
+- test:
+     name: 查询用户资金交易明细失败，参数与签名不同
+     request:
+         url: /queryAccountTransaction
+         method: POST
+         headers:
+
+         json:
+            beginTime: $startTime
+            coinType: $CoinType
+            endTime: $endTime
+            timestamp: $timestamp
+            merchantId: $MerchantId
+            objId: $UserId1
+            signature: $errorSignature
+            rows: $Rows
+            page: $Page
+     validate:
+         - eq: [content.code,"0040"]
+         - eq: [content.desc,"商户鉴权参数异常"]
+         - eq: [content.data,"商户鉴权参数异常"]

@@ -1,0 +1,31 @@
+- config:
+    name: BCY 各交易所的交易对行情信息
+    parameters:
+        - e_name: ${P(e_name.csv)}
+    request:
+        base_url: http://api.coinee.cc
+        headers:
+            Host: api.coinee.cc
+            Content-Type: application/json
+            Cookie: JSESSIONID=35AC586927C99C8C537B459E18095A2E
+
+- test:
+    name: 各交易所的交易对行情信息with $e_name
+    variables:
+        - time: ${get_day_time()}
+    request:
+        url: /deal/getPairByEname.json
+        method: GET
+        params:
+            ename: $e_name
+            device: 30
+            token: ac3ab162f0bdcf531a4adcf8510759e2
+    validate:
+        - eq: [status_code, 200]
+        - len_gt: [content.data,0]
+        - compare_time: [content.data,$time]
+
+
+
+
+
