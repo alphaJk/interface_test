@@ -1,2 +1,2 @@
 # interface_test
-mac上的interface_test文件夹
+基于httprunner框架写的接口测试用例
